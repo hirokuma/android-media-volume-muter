@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Media Volume Muter</string>
+    <string name="app_name">Volume Muter</string>
     <string name="denied">Foreground Service denied.</string>
     <string name="app_description">Start</string>
     <string name="silent">Silent mode</string>

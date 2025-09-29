@@ -94,6 +94,8 @@ class MainActivity() : ComponentActivity() {
             action = NetworkMonitorService.ACTION_STOP_MONITORING
         }
         startService(serviceIntent)
+        finishAndRemoveTask()
+        Log.d(TAG, "stopNetworkService")
     }
 }
 

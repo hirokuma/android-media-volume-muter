@@ -48,6 +48,7 @@ class NetworkMonitorService : Service() {
 
             ACTION_STOP_MONITORING -> {
                 Log.i(TAG, "Network monitoring stopping")
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
         }

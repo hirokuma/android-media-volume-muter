@@ -24,7 +24,6 @@ class NetworkMonitorService : Service() {
         const val ACTION_START_MONITORING = "work.hirokuma.mediavolume.action.START_MONITORING"
         const val ACTION_STOP_MONITORING = "work.hirokuma.mediavolume.action.STOP_MONITORING"
         private const val FOREGROUND_NOTIFICATION_ID = 101
-        private const val NETWORK_STATUS_NOTIFICATION_ID = FOREGROUND_NOTIFICATION_ID
         private const val CHANNEL_ID_FOREGROUND = "network_monitor_foreground_channel"
         private const val TAG = "NetworkMonitorService"
     }
@@ -66,22 +65,22 @@ class NetworkMonitorService : Service() {
             override fun onAvailable(network: Network) {
                 super.onAvailable(network)
                 Log.i(TAG, "Network Available")
-                changeVolumeNotification(getString(R.string.normal), true)
                 setSilentMode(false)
+                changeVolumeNotification(getString(R.string.normal))
             }
 
             override fun onLost(network: Network) {
                 super.onLost(network)
                 Log.i(TAG, "Network Lost")
-                changeVolumeNotification(getString(R.string.silent), false)
                 setSilentMode(true)
+                changeVolumeNotification(getString(R.string.silent))
             }
         }
     }
 
     private fun registerNetworkCallback() {
         val networkRequest = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
             .build()
         try {
             connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
@@ -121,6 +120,7 @@ class NetworkMonitorService : Service() {
 
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID_FOREGROUND)
             .setContentTitle(getString(R.string.app_name))
+            .setContentText(getString(R.string.app_description))
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
             .setOngoing(true) // ユーザーがスワイプで消せないようにする
@@ -135,31 +135,25 @@ class NetworkMonitorService : Service() {
     }
 
     private fun changeVolumeNotification(
-        message: String,
-        isChanged: Boolean
+        message: String
     ) {
-        Log.d(TAG, "isChanged=$isChanged")
-
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntentFlags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         val pendingIntent = PendingIntent.getActivity(
             this, 0, notificationIntent, pendingIntentFlags
         )
-
-        val icon = R.drawable.ic_notification
-
         val notification = NotificationCompat.Builder(this, CHANNEL_ID_FOREGROUND)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(message)
-            .setSmallIcon(icon)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
 
         val notificationManager =
             getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(NETWORK_STATUS_NOTIFICATION_ID, notification)
-        Log.d(TAG, "Network status notification shown: $message")
+        notificationManager.notify(FOREGROUND_NOTIFICATION_ID, notification)
+        Log.d(TAG, "Mute status notification shown: $message")
     }
 
     private fun createNotificationChannels() {

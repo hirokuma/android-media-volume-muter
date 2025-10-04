@@ -5,4 +5,5 @@
     <string name="silent">Silent mode</string>
     <string name="normal">Normal mode</string>
     <string name="stop_service">Stop Service</string>
+    <string name="clear_log">Clear Log</string>
 </resources>

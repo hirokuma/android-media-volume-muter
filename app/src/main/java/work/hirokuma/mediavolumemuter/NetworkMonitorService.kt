@@ -42,13 +42,14 @@ class NetworkMonitorService : Service() {
             ACTION_START_MONITORING -> {
                 startForegroundServiceNotification()
                 registerNetworkCallback()
-                Log.i(TAG, "Network monitoring started")
+                LogRepository.addLog("Network monitoring started")
             }
 
             ACTION_STOP_MONITORING -> {
                 Log.i(TAG, "Network monitoring stopping")
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
+                LogRepository.addLog("Network monitoring stopped")
             }
         }
         return START_STICKY // システムによってサービスが強制終了された場合、再起動を試みる
@@ -58,6 +59,7 @@ class NetworkMonitorService : Service() {
         super.onDestroy()
         unregisterNetworkCallback()
         Log.i(TAG, "Service Destroyed, Network monitoring stopped")
+        LogRepository.addLog("Service Destroyed")
     }
 
     private fun initializeNetworkCallback() {
@@ -67,6 +69,7 @@ class NetworkMonitorService : Service() {
                 Log.i(TAG, "Network Available")
                 setSilentMode(false)
                 changeVolumeNotification(getString(R.string.normal))
+                LogRepository.addLog("Network Available")
             }
 
             override fun onLost(network: Network) {
@@ -74,6 +77,7 @@ class NetworkMonitorService : Service() {
                 Log.i(TAG, "Network Lost")
                 setSilentMode(true)
                 changeVolumeNotification(getString(R.string.silent))
+                LogRepository.addLog("Network Lost")
             }
         }
     }
@@ -85,6 +89,7 @@ class NetworkMonitorService : Service() {
         try {
             connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
             Log.i(TAG, "Network callback registered")
+            LogRepository.addLog("Network callback registered")
         } catch (e: SecurityException) {
             Log.e(
                 TAG, "Failed to register network callback due to SecurityException. " +
@@ -98,6 +103,7 @@ class NetworkMonitorService : Service() {
         try {
             connectivityManager.unregisterNetworkCallback(networkCallback)
             Log.i(TAG, "Network callback unregistered")
+            LogRepository.addLog("Network callback unregistered")
         } catch (e: IllegalArgumentException) {
             Log.w(TAG, "Network callback was not registered or already unregistered.", e)
         }
@@ -132,6 +138,7 @@ class NetworkMonitorService : Service() {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
         )
         Log.d(TAG, "Service started in foreground")
+        LogRepository.addLog("Service started")
     }
 
     private fun changeVolumeNotification(

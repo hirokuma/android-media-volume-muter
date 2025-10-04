@@ -1,6 +1,7 @@
 package work.hirokuma.mediavolumemuter
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
@@ -13,21 +14,47 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.launch
 import work.hirokuma.mediavolumemuter.ui.theme.MediaVolumeMuterTheme
 
 private const val TAG = "MainActivity"
 
 class MainActivity() : ComponentActivity() {
+    private val logViewModel: LogViewModel by viewModels()
+
+    @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -36,11 +63,24 @@ class MainActivity() : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
+            val logItems by logViewModel.logItems.collectAsState()
             MediaVolumeMuterTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = { Text(getString(R.string.app_name)) },
+                            modifier = Modifier.statusBarsPadding()
+                        )
+                    }
+                ) { innerPadding ->
                     ChangeVolume(
                         context = this,
-                        stopService = { stopNetworkService() }
+                        logItems = logItems,
+                        onStopService = { stopNetworkService() },
+                        onClearLog = logViewModel::clearLogs,
+                        modifier = Modifier
+                            .padding(innerPadding)
+                            .statusBarsPadding(),
                     )
                 }
             }
@@ -100,17 +140,82 @@ class MainActivity() : ComponentActivity() {
 }
 
 @Composable
-fun ChangeVolume(context: Context, stopService: () -> Unit, modifier: Modifier = Modifier) {
-    Column(
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier) {
-        Button(
-            onClick = {
-                stopService()
-            },
-        ) {
-            Text(context.getString(R.string.stop_service))
+fun LogItemCard(item: LogItem) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Text(
+            text = item.timestamp,
+            modifier = Modifier.padding(top = 4.dp, start = 16.dp, end = 16.dp),
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(
+            text = item.message,
+            modifier = Modifier.padding(bottom = 4.dp, start = 16.dp, end = 16.dp),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+fun ChangeVolume(
+    context: Context,
+    onStopService: () -> Unit,
+    onClearLog: () -> Unit,
+    logItems: List<LogItem>,
+    modifier: Modifier = Modifier,
+ ) {
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(key1 = logItems.size) {
+        if (logItems.isNotEmpty()) {
+            coroutineScope.launch {
+                listState.animateScrollToItem(index = logItems.size - 1)
+            }
         }
+    }
+
+    Column(
+        modifier = modifier
+    ) {
+        Row() {
+            Button(
+                onClick = {
+                    onStopService()
+                },
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(context.getString(R.string.stop_service))
+            }
+            Button(
+                onClick = {
+                    onClearLog()
+                },
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(context.getString(R.string.clear_log))
+            }        }
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(items = logItems, key = { it.id }) { item ->
+                LogItemCard(item = item) // LogItemCardの実装は前回と同じ
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun LogItemCardPreview() {
+    Surface {
+        val item = LogItem(id=10, timestamp = "1234/45/67", message = "test log")
+        LogItemCard(item)
     }
 }

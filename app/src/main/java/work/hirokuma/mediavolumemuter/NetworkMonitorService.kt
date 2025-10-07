@@ -110,11 +110,8 @@ class NetworkMonitorService : Service() {
     }
 
     private fun setSilentMode(silent: Boolean) {
-        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.setInterruptionFilter(
-            if (silent) NotificationManager.INTERRUPTION_FILTER_NONE
-            else NotificationManager.INTERRUPTION_FILTER_ALL
-        )
+        val volume = Volume.setVolume(applicationContext, silent)
+        LogRepository.addLog("set media volume=$volume")
     }
 
     private fun startForegroundServiceNotification() {

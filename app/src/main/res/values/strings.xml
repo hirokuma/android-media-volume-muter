@@ -6,4 +6,6 @@
     <string name="normal">Normal mode</string>
     <string name="stop_service">Stop Service</string>
     <string name="clear_log">Clear Log</string>
+    <string name="save_volume">Save Vol.</string>
+    <string name="volume_saved">Media Volume saved: %1$d</string>
 </resources>

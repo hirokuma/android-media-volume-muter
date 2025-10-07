@@ -41,8 +41,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
@@ -78,6 +79,7 @@ class MainActivity() : ComponentActivity() {
                         logItems = logItems,
                         onStopService = { stopNetworkService() },
                         onClearLog = logViewModel::clearLogs,
+                        onSaveVolume = { onSaveVolume() },
                         modifier = Modifier
                             .padding(innerPadding)
                             .statusBarsPadding(),
@@ -85,6 +87,12 @@ class MainActivity() : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun onSaveVolume() {
+        val savedVolume = Volume.saveVolume(this)
+        Toast.makeText(this, getString(R.string.volume_saved, savedVolume), Toast.LENGTH_SHORT)
+            .show()
     }
 
     private val requestNotificationPermissionLauncher =
@@ -96,6 +104,7 @@ class MainActivity() : ComponentActivity() {
                 Toast.makeText(this, getString(R.string.denied), Toast.LENGTH_LONG).show()
             }
         }
+
     private fun checkAndRequestNotificationPermission() {
         when {
             ContextCompat.checkSelfPermission(
@@ -104,9 +113,11 @@ class MainActivity() : ComponentActivity() {
             ) == PackageManager.PERMISSION_GRANTED -> {
                 startNetworkService()
             }
+
             shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
                 requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
+
             else -> {
                 requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
@@ -164,9 +175,10 @@ fun ChangeVolume(
     context: Context,
     onStopService: () -> Unit,
     onClearLog: () -> Unit,
+    onSaveVolume: () -> Unit,
     logItems: List<LogItem>,
     modifier: Modifier = Modifier,
- ) {
+) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
@@ -180,13 +192,18 @@ fun ChangeVolume(
 
     Column(
         modifier = modifier
+            .fillMaxSize()
     ) {
-        Row() {
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth()
+        ) {
             Button(
                 onClick = {
                     onStopService()
                 },
-                modifier = Modifier.padding(16.dp)
             ) {
                 Text(context.getString(R.string.stop_service))
             }
@@ -194,10 +211,17 @@ fun ChangeVolume(
                 onClick = {
                     onClearLog()
                 },
-                modifier = Modifier.padding(16.dp)
             ) {
                 Text(context.getString(R.string.clear_log))
-            }        }
+            }
+            Button(
+                onClick = {
+                    onSaveVolume()
+                },
+            ) {
+                Text(context.getString(R.string.save_volume))
+            }
+        }
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
@@ -211,11 +235,18 @@ fun ChangeVolume(
     }
 }
 
-@Preview(showBackground = true)
+@PreviewScreenSizes()
 @Composable
-fun LogItemCardPreview() {
+fun ChangeVolumePreview() {
     Surface {
-        val item = LogItem(id=10, timestamp = "1234/45/67", message = "test log")
-        LogItemCard(item)
+        val item = LogItem(id = 10, timestamp = "1234/45/67", message = "test log")
+        ChangeVolume(
+            context = LocalContext.current,
+            onStopService = {},
+            onClearLog = {},
+            onSaveVolume = {},
+            logItems = listOf(item),
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }

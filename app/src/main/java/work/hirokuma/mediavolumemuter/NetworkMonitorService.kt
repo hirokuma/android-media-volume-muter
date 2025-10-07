@@ -24,7 +24,6 @@ class NetworkMonitorService : Service() {
         const val ACTION_START_MONITORING = "work.hirokuma.mediavolume.action.START_MONITORING"
         const val ACTION_STOP_MONITORING = "work.hirokuma.mediavolume.action.STOP_MONITORING"
         private const val FOREGROUND_NOTIFICATION_ID = 101
-        private const val NETWORK_STATUS_NOTIFICATION_ID = FOREGROUND_NOTIFICATION_ID
         private const val CHANNEL_ID_FOREGROUND = "network_monitor_foreground_channel"
         private const val TAG = "NetworkMonitorService"
     }
@@ -43,13 +42,14 @@ class NetworkMonitorService : Service() {
             ACTION_START_MONITORING -> {
                 startForegroundServiceNotification()
                 registerNetworkCallback()
-                Log.i(TAG, "Network monitoring started")
+                LogRepository.addLog("Network monitoring started")
             }
 
             ACTION_STOP_MONITORING -> {
                 Log.i(TAG, "Network monitoring stopping")
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
+                LogRepository.addLog("Network monitoring stopped")
             }
         }
         return START_STICKY // システムによってサービスが強制終了された場合、再起動を試みる
@@ -59,6 +59,7 @@ class NetworkMonitorService : Service() {
         super.onDestroy()
         unregisterNetworkCallback()
         Log.i(TAG, "Service Destroyed, Network monitoring stopped")
+        LogRepository.addLog("Service Destroyed")
     }
 
     private fun initializeNetworkCallback() {
@@ -66,26 +67,29 @@ class NetworkMonitorService : Service() {
             override fun onAvailable(network: Network) {
                 super.onAvailable(network)
                 Log.i(TAG, "Network Available")
-                changeVolumeNotification(getString(R.string.normal), true)
                 setSilentMode(false)
+                changeVolumeNotification(getString(R.string.normal))
+                LogRepository.addLog("Network Available")
             }
 
             override fun onLost(network: Network) {
                 super.onLost(network)
                 Log.i(TAG, "Network Lost")
-                changeVolumeNotification(getString(R.string.silent), false)
                 setSilentMode(true)
+                changeVolumeNotification(getString(R.string.silent))
+                LogRepository.addLog("Network Lost")
             }
         }
     }
 
     private fun registerNetworkCallback() {
         val networkRequest = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
             .build()
         try {
             connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
             Log.i(TAG, "Network callback registered")
+            LogRepository.addLog("Network callback registered")
         } catch (e: SecurityException) {
             Log.e(
                 TAG, "Failed to register network callback due to SecurityException. " +
@@ -99,6 +103,7 @@ class NetworkMonitorService : Service() {
         try {
             connectivityManager.unregisterNetworkCallback(networkCallback)
             Log.i(TAG, "Network callback unregistered")
+            LogRepository.addLog("Network callback unregistered")
         } catch (e: IllegalArgumentException) {
             Log.w(TAG, "Network callback was not registered or already unregistered.", e)
         }
@@ -121,6 +126,7 @@ class NetworkMonitorService : Service() {
 
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID_FOREGROUND)
             .setContentTitle(getString(R.string.app_name))
+            .setContentText(getString(R.string.app_description))
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
             .setOngoing(true) // ユーザーがスワイプで消せないようにする
@@ -132,34 +138,29 @@ class NetworkMonitorService : Service() {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
         )
         Log.d(TAG, "Service started in foreground")
+        LogRepository.addLog("Service started")
     }
 
     private fun changeVolumeNotification(
-        message: String,
-        isChanged: Boolean
+        message: String
     ) {
-        Log.d(TAG, "isChanged=$isChanged")
-
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntentFlags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         val pendingIntent = PendingIntent.getActivity(
             this, 0, notificationIntent, pendingIntentFlags
         )
-
-        val icon = R.drawable.ic_notification
-
         val notification = NotificationCompat.Builder(this, CHANNEL_ID_FOREGROUND)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(message)
-            .setSmallIcon(icon)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
 
         val notificationManager =
             getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(NETWORK_STATUS_NOTIFICATION_ID, notification)
-        Log.d(TAG, "Network status notification shown: $message")
+        notificationManager.notify(FOREGROUND_NOTIFICATION_ID, notification)
+        Log.d(TAG, "Mute status notification shown: $message")
     }
 
     private fun createNotificationChannels() {

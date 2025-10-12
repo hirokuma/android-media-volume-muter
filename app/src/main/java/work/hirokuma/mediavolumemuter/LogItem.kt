@@ -22,7 +22,7 @@ object LogRepository {
 
     @Synchronized // 複数のスレッドから同時にアクセスされる可能性に備える
     fun addLog(logMessage: String) {
-        val currentTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+        val currentTime = SimpleDateFormat("y/MM/dd HH:mm:ss", Locale.getDefault()).format(Date())
         val newItem = LogItem(id = currentItemCount++, timestamp = currentTime, message = logMessage)
         _logItems.value = _logItems.value + newItem
         Log.d("LogRepository", "Log added: ${newItem.id}")

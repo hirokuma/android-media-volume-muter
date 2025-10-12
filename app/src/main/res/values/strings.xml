@@ -8,4 +8,6 @@
     <string name="clear_log">Clear Log</string>
     <string name="save_volume">Save Vol.</string>
     <string name="volume_saved">Media Volume saved: %1$d</string>
+    <string name="test_silent">Test Silent</string>
+    <string name="test_unsilent">Test Unsilent</string>
 </resources>

@@ -60,7 +60,9 @@ class MainActivity() : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         checkAndRequestNotificationPermission()
-        checkAndRequestNotificationPolicyPermission()
+
+        // for mute
+        // checkAndRequestNotificationPolicyPermission()
 
         enableEdgeToEdge()
         setContent {
@@ -80,6 +82,8 @@ class MainActivity() : ComponentActivity() {
                         onStopService = { stopNetworkService() },
                         onClearLog = logViewModel::clearLogs,
                         onSaveVolume = { onSaveVolume() },
+                        onSilent = { Volume.setSilent(this, true) },
+                        onUnsilent = { Volume.setSilent(this, false) },
                         modifier = Modifier
                             .padding(innerPadding)
                             .statusBarsPadding(),
@@ -117,7 +121,6 @@ class MainActivity() : ComponentActivity() {
             shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
                 requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
-
             else -> {
                 requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
@@ -176,6 +179,8 @@ fun ChangeVolume(
     onStopService: () -> Unit,
     onClearLog: () -> Unit,
     onSaveVolume: () -> Unit,
+    onSilent: () -> Unit,
+    onUnsilent: () -> Unit,
     logItems: List<LogItem>,
     modifier: Modifier = Modifier,
 ) {
@@ -222,6 +227,27 @@ fun ChangeVolume(
                 Text(context.getString(R.string.save_volume))
             }
         }
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth()
+        ) {
+            Button(
+                onClick = {
+                    onSilent()
+                },
+            ) {
+                Text(context.getString(R.string.test_silent))
+            }
+            Button(
+                onClick = {
+                    onUnsilent()
+                },
+            ) {
+                Text(context.getString(R.string.test_unsilent))
+            }
+        }
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
@@ -245,6 +271,8 @@ fun ChangeVolumePreview() {
             onStopService = {},
             onClearLog = {},
             onSaveVolume = {},
+            onSilent = {},
+            onUnsilent = {},
             logItems = listOf(item),
             modifier = Modifier.fillMaxSize()
         )

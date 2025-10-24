@@ -11,6 +11,8 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.net.wifi.WifiInfo
+import android.net.wifi.WifiManager
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -63,7 +65,7 @@ class NetworkMonitorService : Service() {
     }
 
     private fun initializeNetworkCallback() {
-        networkCallback = object : ConnectivityManager.NetworkCallback() {
+        networkCallback = object : ConnectivityManager.NetworkCallback(FLAG_INCLUDE_LOCATION_INFO) {
             override fun onAvailable(network: Network) {
                 super.onAvailable(network)
                 Log.i(TAG, "Network Available")
@@ -78,6 +80,20 @@ class NetworkMonitorService : Service() {
                 setSilentMode(true)
                 changeVolumeNotification(getString(R.string.silent))
                 LogRepository.addLog("Network Lost")
+            }
+
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities
+            ) {
+                super.onCapabilitiesChanged(network, networkCapabilities)
+                val info = (networkCapabilities.transportInfo as? WifiInfo) ?: return@onCapabilitiesChanged
+                if (info.ssid != WifiManager.UNKNOWN_SSID) {
+                    LogRepository.addLog("SSID: ${info.ssid}")
+                } else {
+                    // retry?
+                    LogRepository.addLog("SSID: ???")
+                }
             }
         }
     }

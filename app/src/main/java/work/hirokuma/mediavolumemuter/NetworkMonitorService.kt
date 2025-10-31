@@ -16,6 +16,11 @@ import android.net.wifi.WifiManager
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
 
 class NetworkMonitorService : Service() {
 
@@ -69,8 +74,6 @@ class NetworkMonitorService : Service() {
             override fun onAvailable(network: Network) {
                 super.onAvailable(network)
                 Log.i(TAG, "Network Available")
-                setSilentMode(false)
-                changeVolumeNotification(getString(R.string.normal))
                 LogRepository.addLog("Network Available")
             }
 
@@ -88,11 +91,16 @@ class NetworkMonitorService : Service() {
             ) {
                 super.onCapabilitiesChanged(network, networkCapabilities)
                 val info = (networkCapabilities.transportInfo as? WifiInfo) ?: return@onCapabilitiesChanged
-                if (info.ssid != WifiManager.UNKNOWN_SSID) {
-                    LogRepository.addLog("SSID: ${info.ssid}")
-                } else {
-                    // retry?
-                    LogRepository.addLog("SSID: ???")
+
+                CoroutineScope(Dispatchers.Default).launch() {
+                    if (info.ssid != WifiManager.UNKNOWN_SSID) {
+                        setSilentMode(false)
+                        changeVolumeNotification(getString(R.string.normal))
+                        LogRepository.addLog("SSID: ${info.ssid}")
+                        return@launch
+                    }
+                    Log.d(TAG, "ssid: ${info.ssid}")
+                    delay(500)
                 }
             }
         }
@@ -111,6 +119,7 @@ class NetworkMonitorService : Service() {
                 TAG, "Failed to register network callback due to SecurityException. " +
                         "Ensure ACCESS_NETWORK_STATE permission is granted.", e
             )
+            LogRepository.addLog("Failed to register network")
             stopSelf()
         }
     }
@@ -122,6 +131,7 @@ class NetworkMonitorService : Service() {
             LogRepository.addLog("Network callback unregistered")
         } catch (e: IllegalArgumentException) {
             Log.w(TAG, "Network callback was not registered or already unregistered.", e)
+            LogRepository.addLog("Network callback was not registered")
         }
     }
 

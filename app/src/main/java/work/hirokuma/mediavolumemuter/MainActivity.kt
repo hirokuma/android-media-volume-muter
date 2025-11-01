@@ -2,12 +2,11 @@ package work.hirokuma.mediavolumemuter
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
 import android.os.Bundle
-import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -93,6 +92,18 @@ class MainActivity() : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        val connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        val monitor = NetworkMonitor(connectivityManager)
+        monitor.registerNetworkCallback { wifiInfo ->
+            run {
+                LogRepository.addLog("onResume: ${wifiInfo.ssid}")
+                monitor.unregisterNetworkCallback()
+            }
+        }
+    }
+
     private fun onSaveVolume() {
         val savedVolume = Volume.saveVolume(this)
         Toast.makeText(this, getString(R.string.volume_saved, savedVolume), Toast.LENGTH_SHORT)
@@ -127,14 +138,14 @@ class MainActivity() : ComponentActivity() {
         }
     }
 
-    private fun checkAndRequestNotificationPolicyPermission() {
-        val notificationManager =
-            getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        if (!notificationManager.isNotificationPolicyAccessGranted) {
-            val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
-            startActivity(intent)
-        }
-    }
+//    private fun checkAndRequestNotificationPolicyPermission() {
+//        val notificationManager =
+//            getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+//        if (!notificationManager.isNotificationPolicyAccessGranted) {
+//            val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+//            startActivity(intent)
+//        }
+//    }
 
     private fun startNetworkService() {
         val serviceIntent = Intent(this, NetworkMonitorService::class.java).apply {
@@ -261,7 +272,7 @@ fun ChangeVolume(
     }
 }
 
-@PreviewScreenSizes()
+@PreviewScreenSizes
 @Composable
 fun ChangeVolumePreview() {
     Surface {

@@ -8,24 +8,13 @@ import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
-import android.net.wifi.WifiInfo
-import android.net.wifi.WifiManager
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 
 class NetworkMonitorService : Service() {
-
-    private lateinit var connectivityManager: ConnectivityManager
-    private lateinit var networkCallback: ConnectivityManager.NetworkCallback
+    private lateinit var monitor: NetworkMonitor
 
     companion object {
         const val ACTION_START_MONITORING = "work.hirokuma.mediavolume.action.START_MONITORING"
@@ -37,10 +26,15 @@ class NetworkMonitorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "Service Created")
-        connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         createNotificationChannels()
-        initializeNetworkCallback()
+
+        val connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        monitor = NetworkMonitor(connectivityManager)
+        monitor.registerNetworkCallback { wifiInfo ->
+            run {
+                LogRepository.addLog("SSID: ${wifiInfo.ssid}")
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -48,8 +42,6 @@ class NetworkMonitorService : Service() {
         when (intent?.action) {
             ACTION_START_MONITORING -> {
                 startForegroundServiceNotification()
-                registerNetworkCallback()
-                LogRepository.addLog("Network monitoring started")
             }
 
             ACTION_STOP_MONITORING -> {
@@ -64,76 +56,109 @@ class NetworkMonitorService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        unregisterNetworkCallback()
+        monitor.unregisterNetworkCallback()
         Log.i(TAG, "Service Destroyed, Network monitoring stopped")
         LogRepository.addLog("Service Destroyed")
     }
 
-    private fun initializeNetworkCallback() {
-        networkCallback = object : ConnectivityManager.NetworkCallback(FLAG_INCLUDE_LOCATION_INFO) {
-            override fun onAvailable(network: Network) {
-                super.onAvailable(network)
-                Log.i(TAG, "Network Available")
-                LogRepository.addLog("Network Available")
-            }
-
-            override fun onLost(network: Network) {
-                super.onLost(network)
-                Log.i(TAG, "Network Lost")
-                setSilentMode(true)
-                changeVolumeNotification(getString(R.string.silent))
-                LogRepository.addLog("Network Lost")
-            }
-
-            override fun onCapabilitiesChanged(
-                network: Network,
-                networkCapabilities: NetworkCapabilities
-            ) {
-                super.onCapabilitiesChanged(network, networkCapabilities)
-                val info = (networkCapabilities.transportInfo as? WifiInfo) ?: return@onCapabilitiesChanged
-
-                CoroutineScope(Dispatchers.Default).launch() {
-                    if (info.ssid != WifiManager.UNKNOWN_SSID) {
-                        setSilentMode(false)
-                        changeVolumeNotification(getString(R.string.normal))
-                        LogRepository.addLog("SSID: ${info.ssid}")
-                        return@launch
-                    }
-                    Log.d(TAG, "ssid: ${info.ssid}")
-                    delay(500)
-                }
-            }
-        }
-    }
-
-    private fun registerNetworkCallback() {
-        val networkRequest = NetworkRequest.Builder()
-            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-            .build()
-        try {
-            connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
-            Log.i(TAG, "Network callback registered")
-            LogRepository.addLog("Network callback registered")
-        } catch (e: SecurityException) {
-            Log.e(
-                TAG, "Failed to register network callback due to SecurityException. " +
-                        "Ensure ACCESS_NETWORK_STATE permission is granted.", e
-            )
-            LogRepository.addLog("Failed to register network")
-            stopSelf()
-        }
-    }
-
-    private fun unregisterNetworkCallback() {
-        try {
-            connectivityManager.unregisterNetworkCallback(networkCallback)
-            Log.i(TAG, "Network callback unregistered")
-            LogRepository.addLog("Network callback unregistered")
-        } catch (e: IllegalArgumentException) {
-            Log.w(TAG, "Network callback was not registered or already unregistered.", e)
-            LogRepository.addLog("Network callback was not registered")
-        }
-    }
+//    private fun initializeNetworkCallback() {
+//        networkCallback = object : ConnectivityManager.NetworkCallback(FLAG_INCLUDE_LOCATION_INFO) {
+//            override fun onAvailable(network: Network) {
+//                super.onAvailable(network)
+//                Log.i(TAG, "Network Available")
+//                LogRepository.addLog("Network Available")
+//            }
+//
+//            override fun onLost(network: Network) {
+//                super.onLost(network)
+//                Log.i(TAG, "Network Lost")
+//                setSilentMode(true)
+//                changeVolumeNotification(getString(R.string.silent))
+//                LogRepository.addLog("Network Lost")
+//            }
+//
+//            override fun onCapabilitiesChanged(
+//                network: Network,
+//                networkCapabilities: NetworkCapabilities
+//            ) {
+//                super.onCapabilitiesChanged(network, networkCapabilities)
+//
+////                CoroutineScope(Dispatchers.Main).launch() {
+////                    while (true) {
+////                        val network = connectivityManager.activeNetwork
+////                        val latestCapabilities = connectivityManager.getNetworkCapabilities(network)
+////                        if (latestCapabilities != null) {
+////                            val isWifiConnected =
+////                                latestCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+////                            val isValidated =
+////                                latestCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+////
+////                            if (!isWifiConnected) {
+////                                // ログ: Wi-Fi接続自体が切断されたか、一時的にトランスポートを失った
+////                                // この場合は諦めるか、onLostを待つべき
+////                                LogRepository.addLog("onCap: !isWifiConnected")
+////                            }
+////                            if (!isValidated) {
+////                                // ログ: Wi-Fiには接続しているが、インターネット検証が未完了
+////                                // この場合、SSID取得に失敗しても不思議ではない
+////                                LogRepository.addLog("onCap: !isValidate")
+////                            }
+////                            val info = (networkCapabilities.transportInfo as? WifiInfo)
+////                            if (info != null && info.ssid != WifiManager.UNKNOWN_SSID) {
+////                                LogRepository.addLog("onCap: ($isWifiConnected) ($isValidated) $info")
+////                                return@launch
+////                            }
+////                            Log.d(TAG, "SSID: unknown")
+////                            delay(1000L)
+////                        }
+////                    }
+////                }
+//
+//                val info = (networkCapabilities.transportInfo as? WifiInfo)
+//                if (info == null) {
+//                    LogRepository.addLog("SSID: failed")
+//                    return
+//                }
+//                if (info.ssid != WifiManager.UNKNOWN_SSID) {
+//                    setSilentMode(false)
+//                    changeVolumeNotification(getString(R.string.normal))
+//                    LogRepository.addLog("SSID: ${info.ssid}")
+//                } else {
+//                    LogRepository.addLog("SSID: unknown")
+//                }
+//            }
+//        }
+//    }
+//
+//    private fun registerNetworkCallback() {
+//        val networkRequest = NetworkRequest.Builder()
+//            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+//            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+//            .build()
+//        try {
+//            connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
+//            Log.i(TAG, "Network callback registered")
+//            LogRepository.addLog("Network callback registered")
+//        } catch (e: SecurityException) {
+//            Log.e(
+//                TAG, "Failed to register network callback due to SecurityException. " +
+//                        "Ensure ACCESS_NETWORK_STATE permission is granted.", e
+//            )
+//            LogRepository.addLog("Failed to register network")
+//            stopSelf()
+//        }
+//    }
+//
+//    private fun unregisterNetworkCallback() {
+//        try {
+//            connectivityManager.unregisterNetworkCallback(networkCallback)
+//            Log.i(TAG, "Network callback unregistered")
+//            LogRepository.addLog("Network callback unregistered")
+//        } catch (e: IllegalArgumentException) {
+//            Log.w(TAG, "Network callback was not registered or already unregistered.", e)
+//            LogRepository.addLog("Network callback was not registered")
+//        }
+//    }
 
     private fun setSilentMode(silent: Boolean) {
         Volume.setSilent(applicationContext, silent)
@@ -160,7 +185,6 @@ class NetworkMonitorService : Service() {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
         )
         Log.d(TAG, "Service started in foreground")
-        LogRepository.addLog("Service started")
     }
 
     private fun changeVolumeNotification(

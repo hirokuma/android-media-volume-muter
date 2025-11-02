@@ -30,11 +30,18 @@ class NetworkMonitorService : Service() {
 
         val connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         monitor = NetworkMonitor(connectivityManager)
-        monitor.registerNetworkCallback { wifiInfo ->
-            run {
+        monitor.registerNetworkCallback(
+            onLost = {
+                setSilentMode(true)
+                changeVolumeNotification("lost")
+                LogRepository.addLog("Network Available")
+            },
+            onConnect = { wifiInfo ->
+                setSilentMode(false)
+                changeVolumeNotification("connect")
                 LogRepository.addLog("SSID: ${wifiInfo.ssid}")
             }
-        }
+        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -182,7 +189,7 @@ class NetworkMonitorService : Service() {
         startForeground(
             FOREGROUND_NOTIFICATION_ID,
             notification,
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
         )
         Log.d(TAG, "Service started in foreground")
     }

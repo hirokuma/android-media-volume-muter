@@ -11,12 +11,12 @@ private const val TAG = "NetworkMonitor"
 
 class NetworkMonitor(var connectivityManager: ConnectivityManager) {
     private lateinit var networkCallback: ConnectivityManager.NetworkCallback
-    fun registerNetworkCallback(onResult: (WifiInfo) -> Unit) {
+    fun registerNetworkCallback(onLost: () -> Unit, onConnect: (WifiInfo) -> Unit) {
         networkCallback = object : ConnectivityManager.NetworkCallback(FLAG_INCLUDE_LOCATION_INFO) {
             override fun onAvailable(network: Network) {
                 super.onAvailable(network)
                 Log.i(TAG, "Network Available")
-                LogRepository.addLog("Network Available")
+                onLost()
             }
 
             override fun onLost(network: Network) {
@@ -34,7 +34,7 @@ class NetworkMonitor(var connectivityManager: ConnectivityManager) {
                     Log.i(TAG, "no WifiInfo")
                     return
                 }
-                onResult(info)
+                onConnect(info)
             }
         }
 

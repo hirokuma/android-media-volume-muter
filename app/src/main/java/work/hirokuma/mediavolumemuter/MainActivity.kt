@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
+import android.net.wifi.WifiInfo
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -92,16 +93,24 @@ class MainActivity() : ComponentActivity() {
         }
     }
 
+    private fun onWifiConnect(monitor: NetworkMonitor, wifiInfo: WifiInfo) {
+        LogRepository.addLog("onConnect: ${wifiInfo.ssid}")
+        monitor.unregisterNetworkCallback()
+    }
+
+    private fun onWifiLost(monitor: NetworkMonitor) {
+        LogRepository.addLog("onLost")
+        monitor.unregisterNetworkCallback()
+    }
+
     override fun onResume() {
         super.onResume()
         val connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         val monitor = NetworkMonitor(connectivityManager)
-        monitor.registerNetworkCallback { wifiInfo ->
-            run {
-                LogRepository.addLog("onResume: ${wifiInfo.ssid}")
-                monitor.unregisterNetworkCallback()
-            }
-        }
+        monitor.registerNetworkCallback(
+            onLost = { onWifiLost(monitor) },
+            onConnect = { wifiInfo -> onWifiConnect(monitor, wifiInfo) }
+        )
     }
 
     private fun onSaveVolume() {

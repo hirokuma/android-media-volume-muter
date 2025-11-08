@@ -16,12 +16,12 @@ class NetworkMonitor(var connectivityManager: ConnectivityManager) {
             override fun onAvailable(network: Network) {
                 super.onAvailable(network)
                 Log.i(TAG, "Network Available")
-                onLost()
             }
 
             override fun onLost(network: Network) {
                 super.onLost(network)
                 Log.i(TAG, "Network Lost")
+                onLost()
             }
 
             override fun onCapabilitiesChanged(

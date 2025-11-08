@@ -90,7 +90,7 @@ class NetworkMonitorService : Service() {
         startForeground(
             FOREGROUND_NOTIFICATION_ID,
             notification,
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
         )
         Log.d(TAG, "Service started in foreground")
     }
